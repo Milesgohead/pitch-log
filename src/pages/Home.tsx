@@ -1,170 +1,25 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import BottomSheet, { type SheetState } from '@/components/BottomSheet';
+import CreatePlayerForm, { type Draft } from '@/components/CreatePlayerForm';
+import PlayerCard from '@/components/PlayerCard';
+import StatsPanel from '@/components/StatsPanel';
+import usePhoneScale, { PHONE_H, PHONE_W } from '@/hooks/usePhoneScale';
+import { C } from '@/lib/constants';
+import { STORAGE_KEY, loadPlayers } from '@/lib/storage';
+import { DEFAULT_STATS, type Player, type PlayerStats } from '@/types/player';
 import shandongCrest from '@/assets/shandong.png';
 
-const PHONE_W = 393;
-const PHONE_H = 852;
-
-/** 设计稿取色（来源：base layer 逐像素采样） */
-const C = {
-  screenTop: '#1C6042', // 屏幕渐变顶部
-  screenBottom: '#00140B', // 屏幕渐变底部
-  mint: '#65EFB4', // 主强调色（副标题 / 进行中 / 图标）
-  titleWhite: '#FFFFFF',
-  bodyWhite: '#E5EBE9',
-  dim: '#9FB9AE', // VS / 暂无首发阵容
-  dimmer: '#9AB1A7', // 导入阵容
-  faint: '#99A49F', // 比赛记录
-  cardTop: '#0F402A', // 空状态卡片渐变顶
-  cardBottom: '#0E3B28', // 空状态卡片渐变底
-  buttonFill: '#0A3323',
-  pillFill: '#11573A',
-  sheetFill: '#0B3D22',
-};
-
-/* ---------- 球员数据统计（设计稿：New Player Bottom Sheet） ---------- */
-
-export type PlayerStats = {
-  goals: number;
-  assists: number;
-  yellowCards: number;
-  passes: number; // 成功传球
-  boxTouches: number; // 禁区触球
-  longBalls: number; // 长传（传中）
-  shots: number; // 射门
-  woodwork: number; // 中门框
-  interceptions: number; // 拦截次数
-  duels: number; // 一对一防守
-  clearances: number; // 解围
-  fouls: number; // 犯规次数
-};
-
-export const DEFAULT_STATS: PlayerStats = {
-  goals: 0,
-  assists: 0,
-  yellowCards: 0,
-  passes: 0,
-  boxTouches: 0,
-  longBalls: 0,
-  shots: 0,
-  woodwork: 0,
-  interceptions: 0,
-  duels: 0,
-  clearances: 0,
-  fouls: 0,
-};
-
-type Player = { id: string; name: string; number: string; position: string; stats: PlayerStats };
-
-/* ---------- 本地持久化（v0.1） ---------- */
-
-const STORAGE_KEY = 'pitchlog:players:v1';
-
-/** 从 localStorage 读取球员列表，兼容 v0 无 id / 无 stats 的旧数据 */
-function loadPlayers(): Player[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((p) => p && typeof p.name === 'string')
-      .map((p) => ({
-        ...p,
-        id: typeof p.id === 'string' ? p.id : crypto.randomUUID(),
-        stats: { ...DEFAULT_STATS, ...p.stats },
-      }));
-  } catch {
-    return [];
-  }
-}
-
-/** 统计卡配色（采样自设计稿） */
-const STAT_VARIANTS = {
-  green: { background: '#5ED005', color: '#0B3518' }, // 进球
-  gray: { background: '#C8D0CC', color: '#0B3518' }, // 助攻
-  yellow: { background: '#E9D41C', color: '#0B3518' }, // 黄牌
-  grid: { background: '#13412E', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.10)' },
-} as const;
-
-type StatVariant = keyof typeof STAT_VARIANTS;
-
 /**
- * 统计卡：点按 +1，长按 0.5s −1（不低于 0）
+ * Base Layer + 两个 Bottom Sheet 的编排层
+ * （v0.2 拆分：UI 分块见 components/，数据模型见 types/，取色与持久化见 lib/）
  */
-function StatCard({
-  label,
-  value,
-  variant,
-  onAdd,
-  onSub,
-  big,
-}: {
-  label: string;
-  value: number;
-  variant: StatVariant;
-  onAdd: () => void;
-  onSub: () => void;
-  big?: boolean;
-}) {
-  const longPressed = useRef(false);
-  const timer = useRef(0);
-
-  const onPointerDown = () => {
-    longPressed.current = false;
-    timer.current = window.setTimeout(() => {
-      longPressed.current = true;
-      onSub();
-    }, 500);
-  };
-  const cancel = () => window.clearTimeout(timer.current);
-
-  const isGrid = variant === 'grid';
-  return (
-    <button
-      onPointerDown={onPointerDown}
-      onPointerUp={cancel}
-      onPointerLeave={cancel}
-      onPointerCancel={cancel}
-      onClick={() => {
-        if (!longPressed.current) onAdd();
-        longPressed.current = false;
-      }}
-      className={`flex w-full flex-col items-center justify-center rounded-[14px] font-bold transition active:scale-[0.96] ${big ? 'h-[96px]' : 'h-[68px]'}`}
-      style={{ ...STAT_VARIANTS[variant], touchAction: 'manipulation' }}
-    >
-      <span
-        className={`font-medium ${big ? 'self-start pl-4 text-[14px]' : 'self-start pl-3 pt-2 text-[11px]'}`}
-        style={{ color: isGrid ? C.dim : STAT_VARIANTS[variant].color, opacity: isGrid ? 1 : 0.85 }}
-      >
-        {label}
-      </span>
-      <span className={`flex-1 ${big ? 'text-[38px]' : 'text-[26px]'}`}>{value}</span>
-    </button>
-  );
-}
-
-function usePhoneScale() {
-  const [scale, setScale] = useState(1);
-  useEffect(() => {
-    const f = () =>
-      setScale(
-        Math.min(1, (window.innerHeight - 56) / PHONE_H, (window.innerWidth - 24) / PHONE_W)
-      );
-    f();
-    window.addEventListener('resize', f);
-    return () => window.removeEventListener('resize', f);
-  }, []);
-  return scale;
-}
-
 export default function Home() {
   const scale = usePhoneScale();
   const [sheet, setSheet] = useState<SheetState>('closed');
   const [sheetMode, setSheetMode] = useState<'create' | 'player'>('create');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [players, setPlayers] = useState<Player[]>(loadPlayers);
-  const [draft, setDraft] = useState({ name: '', number: '', position: '' });
+  const [draft, setDraft] = useState<Draft>({ name: '', number: '', position: '' });
 
   // 球员数据变更时自动写回 localStorage（v0.1 持久化）
   useEffect(() => {
@@ -201,6 +56,13 @@ export default function Home() {
         return { ...p, stats: { ...s, [key]: Math.max(0, s[key] + delta) } };
       })
     );
+  };
+
+  /** 删除球员：移除数据并关闭弹层，localStorage 自动同步 */
+  const deletePlayer = () => {
+    setPlayers((prev) => prev.filter((x) => x.id !== activeId));
+    setSheet('closed');
+    setActiveId(null);
   };
 
   const openCreate = () => {
@@ -368,28 +230,7 @@ export default function Home() {
           {/* 已保存球员列表（显示在新建球员按钮下方） */}
           <div className="mt-[18px] space-y-2.5">
             {players.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => openPlayer(p.id)}
-                className="ios-glass flex h-[52px] w-full items-center justify-between rounded-[16px] px-4 text-left transition active:scale-[0.98]"
-              >
-                <span className="text-[15px] font-semibold text-white">{p.name}</span>
-                <div className="flex items-center gap-3">
-                  {p.number && (
-                    <span
-                      className="flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12px] font-bold"
-                      style={{ background: 'rgba(101,239,180,0.18)', color: C.mint }}
-                    >
-                      {p.number}
-                    </span>
-                  )}
-                  {p.position && (
-                    <span className="text-[13px] font-medium" style={{ color: C.dim }}>
-                      {p.position}
-                    </span>
-                  )}
-                </div>
-              </button>
+              <PlayerCard key={p.id} player={p} onClick={() => openPlayer(p.id)} />
             ))}
           </div>
 
@@ -426,128 +267,10 @@ export default function Home() {
           }
         >
           {sheetMode === 'create' ? (
-            <div className="space-y-4 pb-10">
-              <p className="text-[13px] leading-relaxed" style={{ color: C.dim }}>
-                上拉把手展开，下拉收起；拖动到任意位置松手会自动吸附到最近的状态，快速甩动可惯性滑到下一档。
-              </p>
-              {(['球员姓名', '球衣号码', '场上位置'] as const).map((label) => {
-                const key = label === '球员姓名' ? 'name' : label === '球衣号码' ? 'number' : 'position';
-                return (
-                  <div key={label}>
-                    <label
-                      className="mb-1.5 block text-[12px] font-medium"
-                      style={{ color: C.dimmer, letterSpacing: '0.04em' }}
-                    >
-                      {label}
-                    </label>
-                    <input
-                      value={draft[key]}
-                      onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
-                      placeholder={`请输入${label}`}
-                      className="w-full rounded-xl border border-white/15 bg-white/[0.06] px-4 py-3 text-[15px] text-white placeholder:text-white/25 focus:border-[#65EFB4]/60 focus:outline-none"
-                    />
-                  </div>
-                );
-              })}
-              <button
-                onClick={savePlayer}
-                className="mt-2 w-full rounded-xl py-3.5 text-[16px] font-bold text-[#04240F] transition active:scale-[0.98]"
-                style={{ background: C.mint }}
-              >
-                保存
-              </button>
-            </div>
-          ) : (
-            (() => {
-              const p = activePlayer;
-              if (!p) return null;
-              const s = { ...DEFAULT_STATS, ...p.stats };
-              const cell = (key: keyof PlayerStats, label: string) => (
-                <StatCard
-                  key={key}
-                  label={label}
-                  value={s[key]}
-                  variant="grid"
-                  onAdd={() => bumpStat(key, 1)}
-                  onSub={() => bumpStat(key, -1)}
-                />
-              );
-              return (
-                <div className="pb-10">
-                  {/* 顶部三项：进球 / 助攻 / 黄牌 */}
-                  <div className="mt-1 grid grid-cols-3 gap-3">
-                    <StatCard label="进球" value={s.goals} variant="green" big onAdd={() => bumpStat('goals', 1)} onSub={() => bumpStat('goals', -1)} />
-                    <StatCard label="助攻" value={s.assists} variant="gray" big onAdd={() => bumpStat('assists', 1)} onSub={() => bumpStat('assists', -1)} />
-                    <StatCard label="黄牌" value={s.yellowCards} variant="yellow" big onAdd={() => bumpStat('yellowCards', 1)} onSub={() => bumpStat('yellowCards', -1)} />
-                  </div>
-
-                  {/* 进攻 / 防守 两列统计 */}
-                  <div className="mt-7 grid grid-cols-2 gap-3">
-                    <div>
-                      <div className="mb-3 text-center text-[15px] font-semibold" style={{ color: '#E0E4E2' }}>
-                        进攻阶段
-                      </div>
-                      <div className="space-y-3">
-                        {cell('passes', '成功传球')}
-                        {cell('boxTouches', '禁区触球')}
-                        {cell('longBalls', '长传（传中）')}
-                        {/* 射门 + 中门框 合体卡 */}
-                        <div
-                          className="flex overflow-hidden rounded-[14px]"
-                          style={{ background: '#13412E', border: '1px solid rgba(255,255,255,0.10)' }}
-                        >
-                          {(['shots', 'woodwork'] as const).map((key, i) => (
-                            <button
-                              key={key}
-                              onClick={() => bumpStat(key, 1)}
-                              onContextMenu={(e) => {
-                                e.preventDefault();
-                                bumpStat(key, -1);
-                              }}
-                              className={`flex flex-1 flex-col items-center py-2 text-white transition active:bg-white/5 ${i === 1 ? 'border-l border-white/10' : ''}`}
-                              style={{ touchAction: 'manipulation' }}
-                            >
-                              <span className="self-start pl-3 pt-1 text-[11px] font-medium" style={{ color: C.dim }}>
-                                {key === 'shots' ? '射门' : '中门框'}
-                              </span>
-                              <span className="pb-1 text-[26px] font-bold">{s[key]}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="mb-3 text-center text-[15px] font-semibold" style={{ color: '#E0E4E2' }}>
-                        防守阶段
-                      </div>
-                      <div className="space-y-3">
-                        {cell('interceptions', '拦截次数')}
-                        {cell('duels', '一对一防守')}
-                        {cell('clearances', '解围')}
-                        {cell('fouls', '犯规次数')}
-                      </div>
-                    </div>
-                  </div>
-
-                  <p className="mt-6 text-center text-[11px]" style={{ color: C.faint }}>
-                    点按 +1 · 长按 −1
-                  </p>
-
-                  {/* 删除球员（v0.1）：移除数据并关闭弹层，localStorage 自动同步 */}
-                  <button
-                    onClick={() => {
-                      setPlayers((prev) => prev.filter((x) => x.id !== activeId));
-                      setSheet('closed');
-                      setActiveId(null);
-                    }}
-                    className="mt-5 w-full rounded-xl border border-red-400/25 py-3 text-[15px] font-semibold text-red-300/90 transition active:scale-[0.98]"
-                  >
-                    删除球员
-                  </button>
-                </div>
-              );
-            })()
-          )}
+            <CreatePlayerForm draft={draft} onChange={setDraft} onSave={savePlayer} />
+          ) : activePlayer ? (
+            <StatsPanel player={activePlayer} onBump={bumpStat} onDelete={deletePlayer} />
+          ) : null}
         </BottomSheet>
       </div>
     </div>

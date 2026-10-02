@@ -105,11 +105,23 @@ type Player = {
 
 ```
 src/
-├── pages/Home.tsx          # Base Layer + 两个 Sheet 的内容与状态（本文件即三层全部 UI）
+├── pages/Home.tsx              # 编排层：Base Layer 布局 + 状态管理 + Sheet 装配（v0.2 拆分后）
 ├── components/BottomSheet.tsx  # 弹簧动画底部弹层（Layer 2/3 的容器）
-├── index.css               # .ios-glass 灰玻璃体系
-└── assets/shandong.png     # 山东泰山队徽
+├── components/CreatePlayerForm.tsx  # Sheet B 内容：新建球员表单
+├── components/StatsPanel.tsx   # Sheet C 内容：12 项统计面板 + 删除入口
+├── components/PlayerCard.tsx   # 已保存球员列表行（姓名 / 号码 / 位置）
+├── components/StatCard.tsx     # 统计卡：点按 +1 / 长按 −1
+├── types/player.ts             # Player / PlayerStats / DEFAULT_STATS
+├── lib/constants.ts            # 设计稿取色 C + 统计卡配色 STAT_VARIANTS
+├── lib/storage.ts              # localStorage 读写（key: pitchlog:players:v1）
+├── hooks/usePhoneScale.ts      # 手机框等比缩放
+├── index.css                   # .ios-glass 灰玻璃体系
+└── assets/shandong.png         # 山东泰山队徽
 ```
+
+## v0.2 更新
+
+- **架构拆分（P0 技术债）**：`Home.tsx` 由 555 行单文件拆为编排层（278 行）+ 5 个 UI 组件 + `types/` + `lib/` + `hooks/`，UI 与数据模型、取色、持久化解耦；视觉与交互逐字保留，构建产物等价
 
 ## v0 已知边界（后续版本）
 
