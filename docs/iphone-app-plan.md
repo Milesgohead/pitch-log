@@ -44,6 +44,7 @@ This keeps the existing React UI and app logic. It is a native app container aro
 - Capacitor packages resolved at 8.5.2 under Node 24.11.1.
 - `npm run build` passed after the Capacitor and native-layout changes.
 - `npx cap add ios` and `npx cap sync ios` passed. The generated Xcode project and bundled `ios/App/App/public` assets are present. The CLI needed a one-process workaround for this Windows environment's `os.userInfo()` failure; no workaround was added to project files.
+- GitHub Actions run 1 passed dependency installation, web build, and Capacitor project generation. Xcode invocation exposed that Capacitor creates `App.xcodeproj` (not `App.xcworkspace`); the workflow now targets the generated project, and the cloud build must be rerun.
 - The generated `dist/index.html` points to relative local assets (`./assets/...`), so the app bundle does not load its UI from GitHub Pages.
 - Cloud signing, a signed iPhone-installable build, and real-device behavior are not yet verified.
 - The first cloud build will use the checked-in workflow `.github/workflows/ios-unsigned-ipa.yml`; it does not need signing secrets.

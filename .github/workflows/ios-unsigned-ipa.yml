@@ -46,7 +46,7 @@ jobs:
       - name: Compile unsigned iOS app
         run: >-
           xcodebuild
-          -workspace ios/App/App.xcworkspace
+          -project ios/App/App.xcodeproj
           -scheme App
           -configuration Release
           -sdk iphoneos
