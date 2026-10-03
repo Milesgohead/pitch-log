@@ -229,7 +229,7 @@ export default function BottomSheet({
       <div
         ref={sheetRef}
         className="pointer-events-auto absolute bottom-0 left-0 right-0 overflow-hidden rounded-t-3xl border-t border-white/10 bg-[#0A3520]/95 shadow-[0_-12px_48px_rgba(0,0,0,0.45)] backdrop-blur-xl"
-        style={{ height: 0, touchAction: 'none' }}
+        style={{ height: 0, touchAction: 'none', paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {/* 拖拽区：把手 + 标题 */}
         <div

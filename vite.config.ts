@@ -5,8 +5,8 @@ import { inspectAttr } from 'kimi-plugin-inspect-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // GitHub Pages serves this project below /pitch-log/.
-  base: '/pitch-log/',
+  // Relative assets work both in GitHub Pages and in Capacitor's bundled WebView.
+  base: './',
   plugins: [inspectAttr(), react()],
   server: {
     port: 3000,

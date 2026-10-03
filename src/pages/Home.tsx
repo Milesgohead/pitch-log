@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import BottomSheet, { type SheetState } from '@/components/BottomSheet';
 import CreatePlayerForm, { type Draft } from '@/components/CreatePlayerForm';
 import PlayerCard from '@/components/PlayerCard';
@@ -14,6 +15,7 @@ import shandongCrest from '@/assets/shandong.png';
  * （v0.2 拆分：UI 分块见 components/，数据模型见 types/，取色与持久化见 lib/）
  */
 export default function Home() {
+  const isNativeApp = Capacitor.isNativePlatform();
   const scale = usePhoneScale();
   const [sheet, setSheet] = useState<SheetState>('closed');
   const [sheetMode, setSheetMode] = useState<'create' | 'player'>('create');
@@ -81,17 +83,23 @@ export default function Home() {
   const activePlayer = players.find((p) => p.id === activeId) ?? null;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#1E1E1E]">
+    <div
+      className={
+        isNativeApp
+          ? 'h-[100dvh] w-full overflow-hidden bg-[#1E1E1E]'
+          : 'flex min-h-screen items-center justify-center bg-[#1E1E1E]'
+      }
+    >
       {/* 手机外框 */}
       <div
         className="relative shrink-0 overflow-hidden"
         style={{
-          width: PHONE_W,
-          height: PHONE_H,
-          transform: `scale(${scale})`,
-          borderRadius: 44,
-          border: '1px solid rgba(255,255,255,0.06)',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.55)',
+          width: isNativeApp ? '100%' : PHONE_W,
+          height: isNativeApp ? '100dvh' : PHONE_H,
+          transform: isNativeApp ? undefined : `scale(${scale})`,
+          borderRadius: isNativeApp ? 0 : 44,
+          border: isNativeApp ? 'none' : '1px solid rgba(255,255,255,0.06)',
+          boxShadow: isNativeApp ? 'none' : '0 24px 80px rgba(0,0,0,0.55)',
         }}
       >
         {/* 屏幕底色：深绿渐变（设计稿采样） */}
@@ -111,7 +119,13 @@ export default function Home() {
         />
 
         {/* 内容层 */}
-        <div className="absolute inset-0 flex flex-col px-5 pt-[20px]">
+        <div
+          className="absolute inset-0 flex flex-col px-5"
+          style={{
+            paddingTop: isNativeApp ? 'max(20px, env(safe-area-inset-top))' : 20,
+            paddingBottom: isNativeApp ? 'env(safe-area-inset-bottom)' : 0,
+          }}
+        >
           {/* 赛事标题（参考图：▾ 中超 CSL） */}
           <div className="flex items-center gap-1.5">
             <svg width="10" height="8" viewBox="0 0 10 8" fill="none" style={{ marginTop: 2 }}>
