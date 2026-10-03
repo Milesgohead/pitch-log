@@ -69,4 +69,4 @@ jobs:
           name: pitch-log-unsigned-ipa
           path: ${{ runner.temp }}/PitchLog-unsigned.ipa
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
