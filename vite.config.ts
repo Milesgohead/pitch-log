@@ -5,7 +5,8 @@ import { inspectAttr } from 'kimi-plugin-inspect-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  // GitHub Pages serves this project below /pitch-log/.
+  base: '/pitch-log/',
   plugins: [inspectAttr(), react()],
   server: {
     port: 3000,
